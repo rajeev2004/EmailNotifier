@@ -232,33 +232,50 @@ export function startForAccount(cfg) {
     console.log(`[${cfg.name}] IMAP connected`);
 
     try {
-      await getFolders();
+      imap.getBoxes((err, boxes) => {
+        if (err) {
+          console.error(`[${cfg.name}] Folder fetch error:`, err);
+        } else {
+          console.log(`[${cfg.name}] Available folders:`, Object.keys(boxes));
+        }
+      });
+
+      console.log(`[${cfg.name}] Fetching recent emails...`);
       await fetchRecentEmails();
+      console.log(`[${cfg.name}] Initial email fetch complete`);
 
       openFolder("INBOX", (err) => {
-        if (err) return console.error("INBOX open error:", err);
+        if (err) {
+          console.error(`[${cfg.name}] INBOX open error:`, err);
+          return;
+        }
 
         imap.on("mail", async (numNewMsgs) => {
           console.log(`[${cfg.name}] ${numNewMsgs} new email(s) detected`);
           const newDocs = await fetchNewEmails();
-          if (newDocs.length > 0)
+          if (newDocs.length > 0) {
             console.log(
               `[${cfg.name}] ${newDocs.length} new email(s) indexed (real-time)`
             );
+          }
         });
       });
 
-      // Keep connection alive
       setInterval(() => {
         try {
-          if (imap.state === "authenticated" && typeof imap.noop === "function")
+          if (
+            imap.state === "authenticated" &&
+            typeof imap.noop === "function"
+          ) {
             imap.noop();
+            console.log(`[${cfg.name}] Keepalive ping`);
+          }
         } catch (err) {
           console.error(`[${cfg.name}] Keepalive error:`, err.message);
         }
-      }, 15 * 60 * 1000);
+      }, 15 * 60 * 1000); // every 15 minutes
     } catch (err) {
-      console.error(`IMAP ready handler error for ${cfg.name}:`, err.message);
+      console.error(`[${cfg.name}] IMAP ready handler error:`, err.message);
     }
   });
 

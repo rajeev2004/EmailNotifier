@@ -16,7 +16,6 @@ export async function sendWebhook(emailDoc) {
         category: emailDoc.category,
       },
     });
-    console.log("Webhook sent:", emailDoc.subject);
   } catch (err) {
     console.error("Webhook error:", err.message);
   }
@@ -33,7 +32,6 @@ export async function sendSlackNotification(emailDoc) {
     };
 
     await axios.post(SLACK_WEBHOOK, message);
-    console.log("Slack notification sent:", emailDoc.subject);
   } catch (err) {
     console.error("Slack notification error:", err.message);
   }

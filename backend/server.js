@@ -21,11 +21,10 @@ app.use("/api/emails", emailRoutes);
 app.listen(PORT, async () => {
   console.log(`Backend running on http://localhost:${PORT}`);
   try {
-    console.log("🔍 Creating or verifying Elasticsearch index...");
     await ensureIndex();
-    console.log("Elasticsearch index ready.");
+    console.log("✅ Elasticsearch connected");
   } catch (err) {
-    console.error("Failed to ensure index:", err.message);
+    console.error("❌ Elasticsearch connection failed:", err.message);
   }
   const accounts = [];
   for (let i = 1; i <= 5; i++) {
@@ -40,13 +39,10 @@ app.listen(PORT, async () => {
       pass: process.env[`ACCOUNT_${i}_PASS`],
     });
   }
-  console.log("🔍 Environment check:");
-  console.log("ES_URL:", process.env.ES_URL);
-  console.log("ES_USERNAME:", process.env.ES_USERNAME);
-  console.log("ES_PASSWORD:", process.env.ES_PASSWORD ? "Exists" : "Missing");
   if (!accounts.length) {
-    console.warn("No IMAP accounts configured in .env");
+    console.warn("⚠️  No IMAP accounts configured");
   } else {
+    console.log(`✅ Starting ${accounts.length} email account(s)`);
     accounts.forEach((cfg) => startForAccount(cfg));
   }
 });

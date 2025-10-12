@@ -33,7 +33,6 @@ export function startForAccount(cfg) {
     port: cfg.port || 993,
     tls: true,
     tlsOptions: { servername: cfg.host, rejectUnauthorized: false },
-    debug: (msg) => console.log(`[${cfg.name}] IMAP:`, msg),
   });
 
   const openFolder = (folderName, cb) => imap.openBox(folderName, false, cb);
@@ -63,8 +62,7 @@ export function startForAccount(cfg) {
         },
       });
       if (!hits.hits.length) {
-        console.log(`[${account}] No UID found — fetching all emails`);
-        return 0; // Force full reindex
+        return 0;
       }
       return hits?.hits?.[0]?._source?.uid || 0;
     } catch (err) {
@@ -127,11 +125,9 @@ export function startForAccount(cfg) {
 
           await indexEmail(doc);
 
-          // Send notifications for “Interested”
+          // Send notifications for "Interested"
           if (doc.category === "Interested") {
-            console.log(
-              `[${cfg.name}] Sending Slack + Webhook for: ${doc.subject}`
-            );
+            console.log(`[${cfg.name}] ✨ Interested: ${doc.subject}`);
             await sendWebhook(doc);
             await sendSlackNotification(doc);
           }
@@ -188,11 +184,7 @@ export function startForAccount(cfg) {
         }
 
         const sinceStr = formatImapDate(sinceDate);
-        console.log(
-          `[${cfg.name}] Running IMAP search in "${folderName}" since ${sinceStr}`
-        );
 
-        // ✅ Correct IMAP search syntax
         imap.search([["SINCE", sinceStr]], async (err, results) => {
           if (err) {
             console.error(
@@ -203,28 +195,13 @@ export function startForAccount(cfg) {
           }
 
           if (!results || results.length === 0) {
-            console.log(
-              `[${cfg.name}] No messages found in ${folderName} since ${sinceStr}`
-            );
             return resolve([]);
           }
 
-          console.log(
-            `[${cfg.name}] Found ${results.length} total messages in ${folderName}`
-          );
-
-          // ✅ Only fetch newer UIDs than the last indexed one
           const newUIDs = results.filter((uid) => uid > lastUID);
           if (newUIDs.length === 0) {
-            console.log(
-              `[${cfg.name}] No new UIDs beyond ${lastUID} in ${folderName}`
-            );
             return resolve([]);
           }
-
-          console.log(
-            `[${cfg.name}] Fetching ${newUIDs.length} new messages from ${folderName}`
-          );
 
           const fetch = imap.fetch(newUIDs, { bodies: "" });
           const messages = [];
@@ -244,11 +221,7 @@ export function startForAccount(cfg) {
             const docs = (await Promise.all(messages)).filter(Boolean);
 
             if (docs.length > 0) {
-              console.log(
-                `[${cfg.name}] ${folderName}: ${docs.length} new email(s) indexed`
-              );
-            } else {
-              console.log(`[${cfg.name}] ${folderName}: No new emails parsed`);
+              console.log(`[${cfg.name}] Indexed ${docs.length} new email(s)`);
             }
 
             resolve(docs);
@@ -276,12 +249,10 @@ export function startForAccount(cfg) {
 
       flattenBoxes(boxes);
 
-      console.log(`[${cfg.name}] Fetching from folders:`, folderList);
       let totalIndexed = 0;
 
       for (const folder of folderList) {
         try {
-          console.log(`[${cfg.name}] Starting fetch for folder: ${folder}`);
           const docs = await fetchEmailsFromFolder(folder);
           totalIndexed += docs.length;
         } catch (folderErr) {
@@ -294,8 +265,6 @@ export function startForAccount(cfg) {
 
       if (totalIndexed > 0) {
         console.log(`[${cfg.name}] ${totalIndexed} new email(s) indexed`);
-      } else {
-        console.log(`[${cfg.name}] No new emails`);
       }
     } catch (err) {
       console.error(`fetchRecentEmails error for ${cfg.name}:`, err.message);
@@ -315,17 +284,7 @@ export function startForAccount(cfg) {
     console.log(`[${cfg.name}] IMAP connected`);
 
     try {
-      imap.getBoxes((err, boxes) => {
-        if (err) {
-          console.error(`[${cfg.name}] Folder fetch error:`, err);
-        } else {
-          console.log(`[${cfg.name}] Available folders:`, Object.keys(boxes));
-        }
-      });
-
-      console.log(`[${cfg.name}] Fetching recent emails...`);
       await fetchRecentEmails();
-      console.log(`[${cfg.name}] Initial email fetch complete`);
 
       openFolder("INBOX", (err) => {
         if (err) {
@@ -334,12 +293,9 @@ export function startForAccount(cfg) {
         }
 
         imap.on("mail", async (numNewMsgs) => {
-          console.log(`[${cfg.name}] ${numNewMsgs} new email(s) detected`);
           const newDocs = await fetchNewEmails();
           if (newDocs.length > 0) {
-            console.log(
-              `[${cfg.name}] ${newDocs.length} new email(s) indexed (real-time)`
-            );
+            console.log(`[${cfg.name}] ${newDocs.length} new email(s)`);
           }
         });
       });
@@ -351,38 +307,31 @@ export function startForAccount(cfg) {
             typeof imap.noop === "function"
           ) {
             imap.noop();
-            console.log(`[${cfg.name}] Keepalive ping`);
           }
         } catch (err) {
           console.error(`[${cfg.name}] Keepalive error:`, err.message);
         }
-      }, 15 * 60 * 1000); // every 15 minutes
+      }, 15 * 60 * 1000);
     } catch (err) {
       console.error(`[${cfg.name}] IMAP ready handler error:`, err.message);
     }
   });
 
   imap.on("error", (err) => {
-    console.error(`IMAP error for ${cfg.name}:`, err.message);
+    console.error(`[${cfg.name}] IMAP error:`, err.message);
     setTimeout(() => {
-      console.log(`Reconnecting IMAP for ${cfg.name}...`);
       try {
         imap.connect();
       } catch (reconnectErr) {
-        console.error(
-          `Reconnect failed for ${cfg.name}:`,
-          reconnectErr.message
-        );
+        console.error(`[${cfg.name}] Reconnect failed:`, reconnectErr.message);
       }
     }, 30000);
   });
 
-  imap.on("end", () => console.log(`IMAP connection ended for ${cfg.name}`));
-  imap.on("close", (hadError) =>
-    console.log(
-      `🔌 IMAP connection closed for ${cfg.name}, had error: ${hadError}`
-    )
-  );
+  imap.on("end", () => console.log(`[${cfg.name}] Connection ended`));
+  imap.on("close", (hadError) => {
+    if (hadError) console.log(`[${cfg.name}] Connection closed with error`);
+  });
 
   try {
     imap.connect();

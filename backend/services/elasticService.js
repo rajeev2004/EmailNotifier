@@ -19,7 +19,7 @@ const INDEX = "emails";
 
 client
   .info()
-  .then(() => console.log("Connected to Elasticsearch Cloud"))
+  .then(() => {})
   .catch((err) =>
     console.error("Elasticsearch connection failed:", err.message)
   );
@@ -48,7 +48,6 @@ export async function ensureIndex() {
         },
       },
     });
-    console.log("Created index:", INDEX);
   }
 }
 

@@ -32,6 +32,7 @@ export async function ensureIndex() {
       body: {
         mappings: {
           properties: {
+            uid: { type: "long" },
             account: { type: "keyword" },
             folder: { type: "keyword" },
             subject: { type: "text" },

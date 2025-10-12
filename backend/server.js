@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { ensureIndex } from "./services/elasticService.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import { startForAccount } from "./services/imapService.js";
 
@@ -12,9 +13,15 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/emails", emailRoutes);
 
-app.listen(PORT, () => {
+app.listen(PORT, async() => {
   console.log(`Backend running on http://localhost:${PORT}`);
-
+  try {
+    console.log("🔍 Creating or verifying Elasticsearch index...");
+    await ensureIndex();
+    console.log("Elasticsearch index ready.");
+  } catch (err) {
+    console.error("Failed to ensure index:", err.message);
+  }
   const accounts = [];
   for (let i = 1; i <= 5; i++) {
     const name = process.env[`ACCOUNT_${i}_NAME`];

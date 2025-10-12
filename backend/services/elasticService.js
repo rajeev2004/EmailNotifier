@@ -24,7 +24,7 @@ client
     console.error("Elasticsearch connection failed:", err.message)
   );
 
-async function ensureIndex() {
+export async function ensureIndex() {
   const exists = await client.indices.exists({ index: INDEX });
   if (!exists) {
     await client.indices.create({

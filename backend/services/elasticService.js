@@ -32,7 +32,7 @@ export async function ensureIndex() {
       body: {
         mappings: {
           properties: {
-            uid: { type: "long" },
+            uid: { type: "long" }, //required for sorting
             account: { type: "keyword" },
             folder: { type: "keyword" },
             subject: { type: "text" },

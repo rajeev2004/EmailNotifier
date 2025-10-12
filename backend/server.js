@@ -9,11 +9,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://rajeev2004.github.io",
+    methods: ["GET", "POST"],
+  })
+);
 app.use(express.json());
 app.use("/api/emails", emailRoutes);
 
-app.listen(PORT, async() => {
+app.listen(PORT, async () => {
   console.log(`Backend running on http://localhost:${PORT}`);
   try {
     console.log("🔍 Creating or verifying Elasticsearch index...");

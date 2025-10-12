@@ -192,20 +192,35 @@ export function startForAccount(cfg) {
 
   async function fetchRecentEmails() {
     try {
-      const folders = [
-        "INBOX",
-        "[Gmail]/Sent Mail",
-        "[Gmail]/Spam",
-        "[Gmail]/Starred",
-      ];
+      const boxes = await getFolders();
+      const folderList = [];
+
+      // Flatten nested folders (like [Gmail]/Sent Mail)
+      function flattenBoxes(boxes, prefix = "") {
+        for (const [name, box] of Object.entries(boxes)) {
+          const fullName = prefix
+            ? `${prefix}${box.delimiter || "/"}${name}`
+            : name;
+          folderList.push(fullName);
+          if (box.children) flattenBoxes(box.children, fullName);
+        }
+      }
+
+      flattenBoxes(boxes);
+
+      console.log(`[${cfg.name}] Fetching from folders:`, folderList);
       let totalIndexed = 0;
 
-      for (const folder of folders) {
+      for (const folder of folderList) {
         try {
+          console.log(`[${cfg.name}] Starting fetch for folder: ${folder}`);
           const docs = await fetchEmailsFromFolder(folder);
           totalIndexed += docs.length;
         } catch (folderErr) {
-          console.log(`[${cfg.name}] ${folder}: ${folderErr.message}`);
+          console.warn(
+            `[${cfg.name}] Skipping folder "${folder}" → ${folderErr.message}`
+          );
+          continue;
         }
       }
 

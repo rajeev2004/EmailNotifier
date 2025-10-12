@@ -165,8 +165,14 @@ export function startForAccount(cfg) {
           );
           return resolve([]);
         }
-
-        imap.search(['SINCE', sinceDate], async (err, results) => {
+        const sinceStr = sinceDate
+          .toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+          .replace(/ /g, "-");
+        imap.search(["SINCE", sinceStr], async (err, results) => {
           if (err || !results?.length) return resolve([]);
 
           const newUIDs = results.filter((uid) => uid > lastUID);

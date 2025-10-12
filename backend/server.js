@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import { ensureIndex } from "./services/elasticService.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import { startForAccount } from "./services/imapService.js";
-import { indexEmail } from "./services/elasticService.js";
 
 dotenv.config();
 const app = express();
@@ -12,27 +11,12 @@ const PORT = process.env.PORT || 3001;
 
 app.use(
   cors({
-    origin: "https://rajeev2004.github.io",
+    origin: ["https://rajeev2004.github.io","http://localhost:5173"],
     methods: ["GET", "POST"],
   })
 );
 app.use(express.json());
 app.use("/api/emails", emailRoutes);
-
-app.get("/test-index", async (req, res) => {
-  const testDoc = {
-    account: "Rajeev Mail",
-    folder: "INBOX",
-    subject: "Render Test Email",
-    body: "This is a test email inserted manually into Elasticsearch.",
-    from: "test@example.com",
-    to: "me@example.com",
-    date: new Date().toISOString(),
-    category: "Interested",
-  };
-  await indexEmail(testDoc);
-  res.send("✅ Test email indexed!");
-});
 
 app.listen(PORT, async () => {
   console.log(`Backend running on http://localhost:${PORT}`);

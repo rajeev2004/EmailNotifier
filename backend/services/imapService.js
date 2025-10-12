@@ -27,7 +27,7 @@ function getSinceDate() {
 
 export function startForAccount(cfg) {
   const imap = new Imap({
-    user: cfg.user.startsWith("recent:") ? cfg.user : `recent:${cfg.user}`,
+    user: cfg.user,
     password: cfg.pass,
     host: cfg.host,
     port: cfg.port || 993,
@@ -63,9 +63,9 @@ export function startForAccount(cfg) {
         },
       });
       if (!hits.hits.length) {
-      console.log(`[${account}] No UID found — fetching all emails`);
-      return 0; // Force full reindex
-    }
+        console.log(`[${account}] No UID found — fetching all emails`);
+        return 0; // Force full reindex
+      }
       return hits?.hits?.[0]?._source?.uid || 0;
     } catch (err) {
       console.error("Elasticsearch UID fetch error:", err.message);
@@ -166,7 +166,7 @@ export function startForAccount(cfg) {
           return resolve([]);
         }
 
-        imap.search(["ALL"], async (err, results) => {
+        imap.search(['SINCE', sinceDate], async (err, results) => {
           if (err || !results?.length) return resolve([]);
 
           const newUIDs = results.filter((uid) => uid > lastUID);

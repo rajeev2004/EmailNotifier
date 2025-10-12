@@ -145,10 +145,6 @@ export function startForAccount(cfg) {
     return new Promise((resolve) => {
       openFolder(folderName, async (err) => {
         if (err) {
-          console.error(
-            `Error opening folder ${folderName} for ${cfg.name}:`,
-            err
-          );
           return resolve([]);
         }
 
@@ -242,7 +238,11 @@ export function startForAccount(cfg) {
           const fullName = prefix
             ? `${prefix}${box.delimiter || "/"}${name}`
             : name;
-          folderList.push(fullName);
+
+          // Only add folders that can actually be selected
+          if (!box.children || Object.keys(box.children).length === 0) {
+            folderList.push(fullName);
+          }
           if (box.children) flattenBoxes(box.children, fullName);
         }
       }
@@ -255,10 +255,9 @@ export function startForAccount(cfg) {
         try {
           const docs = await fetchEmailsFromFolder(folder);
           totalIndexed += docs.length;
+          // Add delay between folders to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (folderErr) {
-          console.warn(
-            `[${cfg.name}] Skipping folder "${folder}" → ${folderErr.message}`
-          );
           continue;
         }
       }

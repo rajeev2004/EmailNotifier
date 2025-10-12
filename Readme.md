@@ -107,7 +107,6 @@ Fetching recent emails...
 ## 🧾 Deployment Details
 | Component | Platform | URL |
 |------------|-----------|-----|
-| **Backend** | Render | https://emailnotifier-backend.onrender.com |
 | **Frontend** | GitHub Pages | https://rajeev2004.github.io/EmailNotifier/ |
 | **Database** | Elasticsearch Cloud | Hosted on Elastic Cloud |
 | **AI API** | Groq (Llama 3.1) | Used for smart replies |
@@ -117,7 +116,6 @@ Fetching recent emails...
 ## 🎥 Demo
 You can check out the live project here:  
 🔗 [**Live Website**](https://rajeev2004.github.io/EmailNotifier/)  
-🔗 [**Backend API**](https://emailnotifier-backend.onrender.com)
 
 
 ## ⭐ Summary

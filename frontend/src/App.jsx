@@ -5,7 +5,7 @@ import SearchBar from "./components/SearchBar";
 import Filters from "./components/Filters";
 import EmailList from "./components/EmailList";
 
-const API_BASE = "http://localhost:3001/api/emails";
+const API_BASE = "https://emailnotifier-backend.onrender.com/api/emails";
 
 function App() {
   const [emails, setEmails] = useState([]);

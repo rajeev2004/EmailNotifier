@@ -6,7 +6,7 @@ export default function EmailList({ emails }) {
   const handleSuggest = async (email) => {
     try {
       const res = await axios.post(
-        "http://localhost:3001/api/emails/suggest-reply",
+        "https://emailnotifier-backend.onrender.com/api/emails/suggest-reply",
         {
           emailBody: email.body,
         }

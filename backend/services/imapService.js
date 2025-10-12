@@ -165,6 +165,8 @@ export function startForAccount(cfg) {
           );
           return resolve([]);
         }
+
+        // ✅ Convert JS Date -> IMAP date format (DD-MMM-YYYY)
         function formatImapDate(date) {
           const months = [
             "Jan",
@@ -186,11 +188,43 @@ export function startForAccount(cfg) {
         }
 
         const sinceStr = formatImapDate(sinceDate);
-        imap.search(["SINCE", sinceStr], async (err, results) => {
-          if (err || !results?.length) return resolve([]);
+        console.log(
+          `[${cfg.name}] Running IMAP search in "${folderName}" since ${sinceStr}`
+        );
 
+        // ✅ Correct IMAP search syntax
+        imap.search(["SINCE", sinceStr], async (err, results) => {
+          if (err) {
+            console.error(
+              `[${cfg.name}] IMAP search error in ${folderName}:`,
+              err.message
+            );
+            return resolve([]);
+          }
+
+          if (!results || results.length === 0) {
+            console.log(
+              `[${cfg.name}] No messages found in ${folderName} since ${sinceStr}`
+            );
+            return resolve([]);
+          }
+
+          console.log(
+            `[${cfg.name}] Found ${results.length} total messages in ${folderName}`
+          );
+
+          // ✅ Only fetch newer UIDs than the last indexed one
           const newUIDs = results.filter((uid) => uid > lastUID);
-          if (!newUIDs.length) return resolve([]);
+          if (newUIDs.length === 0) {
+            console.log(
+              `[${cfg.name}] No new UIDs beyond ${lastUID} in ${folderName}`
+            );
+            return resolve([]);
+          }
+
+          console.log(
+            `[${cfg.name}] Fetching ${newUIDs.length} new messages from ${folderName}`
+          );
 
           const fetch = imap.fetch(newUIDs, { bodies: "" });
           const messages = [];
@@ -199,13 +233,22 @@ export function startForAccount(cfg) {
             messages.push(processMessage(msg, sinceDate, folderName))
           );
 
+          fetch.once("error", (fetchErr) => {
+            console.error(
+              `[${cfg.name}] Fetch error in ${folderName}:`,
+              fetchErr.message
+            );
+          });
+
           fetch.once("end", async () => {
             const docs = (await Promise.all(messages)).filter(Boolean);
 
             if (docs.length > 0) {
               console.log(
-                `[${cfg.name}] ${folderName}: ${docs.length} new emails indexed`
+                `[${cfg.name}] ${folderName}: ${docs.length} new email(s) indexed`
               );
+            } else {
+              console.log(`[${cfg.name}] ${folderName}: No new emails parsed`);
             }
 
             resolve(docs);

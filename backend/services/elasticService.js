@@ -10,29 +10,18 @@ const client = new Client({
     username: ES_USERNAME,
     password: ES_PASSWORD,
   },
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
   requestTimeout: 60000,
   maxRetries: 5,
-  transport: {
-    requestOptions: {
-      headers: {
-        Authorization:
-          "Basic " +
-          Buffer.from(`${ES_USERNAME}:${ES_PASSWORD}`).toString("base64"),
-      },
-    },
-  },
 });
 
 const INDEX = "emails";
 
 client
   .info()
-  .then(() => console.log("✅ Connected to Elasticsearch Cloud"))
+  .then(() => console.log("Connected to Elasticsearch Cloud"))
   .catch((err) =>
-    console.error("❌ Elasticsearch connection failed:", err.message)
+    console.error("Elasticsearch connection failed:", err.message)
   );
 
 async function ensureIndex() {

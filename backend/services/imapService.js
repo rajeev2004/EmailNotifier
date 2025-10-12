@@ -6,7 +6,16 @@ import { sendWebhook, sendSlackNotification } from "./notifier.js";
 import { Client } from "@elastic/elasticsearch";
 
 const ES_URL = process.env.ES_URL || "http://localhost:9200";
-const client = new Client({ node: ES_URL });
+const ES_USERNAME = process.env.ES_USERNAME;
+const ES_PASSWORD = process.env.ES_PASSWORD;
+const client = new Client({
+  node: ES_URL,
+  auth: {
+    username: ES_USERNAME,
+    password: ES_PASSWORD,
+  },
+  ssl: { rejectUnauthorized: false },
+});
 const INDEX = "emails";
 
 function getSinceDate() {
@@ -71,7 +80,18 @@ export function startForAccount(cfg) {
     return new Promise((resolve) => {
       msg.once("end", async () => {
         try {
+          if (!buffer || buffer.trim().length === 0) {
+            console.warn(`[${cfg.name}] Skipping empty email body.`);
+            return resolve(null);
+          }
           const parsed = await simpleParser(buffer);
+
+          if (!parsed.from || !parsed.date) {
+            console.warn(
+              `[${cfg.name}] Skipping malformed email: missing headers.`
+            );
+            return resolve(null);
+          }
 
           // Skip old messages
           if (parsed.date && parsed.date < sinceDate) return resolve(null);

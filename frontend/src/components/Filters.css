@@ -1,0 +1,13 @@
+.filters {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.filters select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #aaa;
+  font-size: 14px;
+}

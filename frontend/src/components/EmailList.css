@@ -1,0 +1,82 @@
+.email-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.email-card {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 12px 16px;
+  background: #fdfdfd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.email-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.email-header h3 {
+  margin: 0;
+  color: #222;
+}
+
+.email-date {
+  font-size: 12px;
+  color: #666;
+}
+
+.email-meta {
+  font-size: 14px;
+  color: #555;
+}
+
+.email-body {
+  font-size: 13px;
+  color: #444;
+  margin-top: 8px;
+}
+
+.category {
+  margin-top: 10px;
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  color: #fff;
+  text-transform: capitalize;
+}
+
+.category.interested {
+  background-color: #4caf50; /* Green */
+}
+
+.category.meeting-booked {
+  background-color: #2196f3; /* Blue */
+}
+
+.category.not-interested {
+  background-color: #ff9800; /* Orange */
+}
+
+.category.out-of-office {
+  background-color: #9c27b0; /* Purple */
+}
+
+.category.spam {
+  background-color: #f44336; /* Red */
+}
+
+.category.uncategorized {
+  background-color: #9e9e9e; /* Gray */
+}
+
+.suggested-reply {
+  background: #f4f4f4;
+  padding: 10px;
+  margin-top: 10px;
+  border-left: 4px solid #007bff;
+  font-style: italic;
+}

@@ -27,12 +27,13 @@ function getSinceDate() {
 
 export function startForAccount(cfg) {
   const imap = new Imap({
-    user: cfg.user,
+    user: cfg.user.startsWith("recent:") ? cfg.user : `recent:${cfg.user}`,
     password: cfg.pass,
     host: cfg.host,
     port: cfg.port || 993,
     tls: true,
     tlsOptions: { servername: cfg.host, rejectUnauthorized: false },
+    debug: (msg) => console.log(`[${cfg.name}] IMAP:`, msg),
   });
 
   const openFolder = (folderName, cb) => imap.openBox(folderName, false, cb);
@@ -61,6 +62,10 @@ export function startForAccount(cfg) {
           },
         },
       });
+      if (!hits.hits.length) {
+      console.log(`[${account}] No UID found — fetching all emails`);
+      return 0; // Force full reindex
+    }
       return hits?.hits?.[0]?._source?.uid || 0;
     } catch (err) {
       console.error("Elasticsearch UID fetch error:", err.message);

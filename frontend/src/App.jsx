@@ -16,13 +16,19 @@ function App() {
   useEffect(() => {
     fetchAccounts();
   }, []);
+
   useEffect(() => {
     fetchEmails();
     const interval = setInterval(fetchEmails, 30000); // every 30 sec
     return () => clearInterval(interval);
-  }, []);
-  const fetchEmails = async (filters = {}) => {
+  }, [selectedAccount, query]);
+
+  const fetchEmails = async () => {
     try {
+      const filters = {};
+      if (query) filters.q = query;
+      if (selectedAccount) filters.account = selectedAccount;
+
       const params = new URLSearchParams(filters);
       const res = await axios.get(`${API_BASE}/search?${params}`);
       setEmails(res.data.data || []);
@@ -42,12 +48,10 @@ function App() {
 
   const handleAccountChange = (account) => {
     setSelectedAccount(account);
-    fetchEmails({ account });
   };
 
   const handleSearch = (q) => {
     setQuery(q);
-    fetchEmails({ q, account: selectedAccount });
   };
 
   return (

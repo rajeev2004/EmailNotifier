@@ -127,7 +127,7 @@ export function startForAccount(cfg) {
 
           // Send notifications for "Interested"
           if (doc.category === "Interested") {
-            console.log(`[${cfg.name}] ✨ Interested: ${doc.subject}`);
+            console.log(`[${cfg.name}] Interested: ${doc.subject}`);
             await sendWebhook(doc);
             await sendSlackNotification(doc);
           }
@@ -158,7 +158,7 @@ export function startForAccount(cfg) {
           return resolve([]);
         }
 
-        // ✅ Convert JS Date -> IMAP date format (DD-MMM-YYYY)
+        // Convert JS Date -> IMAP date format (DD-MMM-YYYY)
         function formatImapDate(date) {
           const months = [
             "Jan",

@@ -30,7 +30,7 @@ export async function sendWebhook(emailDoc) {
     lastWebhookTime = Date.now();
   } catch (err) {
     if (err.response?.status === 429) {
-      console.error("⚠️ Webhook rate limited");
+      console.error("Webhook rate limited");
     } else {
       console.error("Webhook error:", err.message);
     }
@@ -58,7 +58,7 @@ export async function sendSlackNotification(emailDoc) {
     lastSlackTime = Date.now();
   } catch (err) {
     if (err.response?.status === 429) {
-      console.error("⚠️ Slack rate limited");
+      console.error("Slack rate limited");
     } else {
       console.error("Slack notification error:", err.message);
     }

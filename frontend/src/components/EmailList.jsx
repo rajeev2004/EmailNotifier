@@ -44,7 +44,7 @@ export default function EmailList({ emails }) {
 
           {suggestions[mail.uid] && (
             <div className="suggested-reply">
-              <h4>🤖 Suggested Reply:</h4>
+              <h4>Suggested Reply:</h4>
               <p>{suggestions[mail.uid]}</p>
             </div>
           )}

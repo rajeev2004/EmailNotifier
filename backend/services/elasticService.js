@@ -17,6 +17,13 @@ const client = new Client({
 
 const INDEX = "emails";
 
+client
+  .info()
+  .then(() => console.log("✅ Connected to Elasticsearch Cloud"))
+  .catch((err) =>
+    console.error("❌ Elasticsearch connection failed:", err.message)
+  );
+
 async function ensureIndex() {
   const exists = await client.indices.exists({ index: INDEX });
   if (!exists) {

@@ -193,7 +193,7 @@ export function startForAccount(cfg) {
         );
 
         // ✅ Correct IMAP search syntax
-        imap.search(["SINCE", sinceStr], async (err, results) => {
+        imap.search([["SINCE", sinceStr]], async (err, results) => {
           if (err) {
             console.error(
               `[${cfg.name}] IMAP search error in ${folderName}:`,

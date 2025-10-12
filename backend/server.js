@@ -29,9 +29,9 @@ app.listen(PORT, () => {
     });
   }
   console.log("🔍 Environment check:");
-console.log("ES_URL:", process.env.ES_URL);
-console.log("ES_USERNAME:", process.env.ES_USERNAME);
-console.log("ES_PASSWORD:", process.env.ES_PASSWORD ? "Exists" : "Missing");
+  console.log("ES_URL:", process.env.ES_URL);
+  console.log("ES_USERNAME:", process.env.ES_USERNAME);
+  console.log("ES_PASSWORD:", process.env.ES_PASSWORD ? "Exists" : "Missing");
   if (!accounts.length) {
     console.warn("No IMAP accounts configured in .env");
   } else {

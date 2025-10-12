@@ -1,13 +1,20 @@
 import { Client } from "@elastic/elasticsearch";
 
 const ES_URL = process.env.ES_URL || "http://localhost:9200";
+const ES_USERNAME = process.env.ES_USERNAME;
+const ES_PASSWORD = process.env.ES_PASSWORD;
+
 const client = new Client({
   node: ES_URL,
   auth: {
-    username: process.env.ES_USERNAME,
-    password: process.env.ES_PASSWORD,
+    username: ES_USERNAME,
+    password: ES_PASSWORD,
+  },
+  ssl: {
+    rejectUnauthorized: false, // helps with Render/Elastic Cloud SSL handshake
   },
 });
+
 const INDEX = "emails";
 
 async function ensureIndex() {

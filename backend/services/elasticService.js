@@ -32,9 +32,19 @@ export async function ensureIndex() {
       body: {
         mappings: {
           properties: {
-            uid: { type: "long" }, //required for sorting
-            account: { type: "keyword" },
-            folder: { type: "keyword" },
+            uid: { type: "long" },
+            account: {
+              type: "text",
+              fields: {
+                keyword: { type: "keyword" },
+              },
+            },
+            folder: {
+              type: "text",
+              fields: {
+                keyword: { type: "keyword" },
+              },
+            },
             subject: { type: "text" },
             body: { type: "text" },
             from: { type: "text" },
@@ -66,7 +76,7 @@ export async function searchEmails(query, filters = {}) {
 
   const boolQuery = { must, filter: [] };
   if (filters.account)
-    boolQuery.filter.push({ term: { account: filters.account } });
+    boolQuery.filter.push({ term: { "account.keyword": filters.account } });
 
   const { hits } = await client.search({
     index: INDEX,

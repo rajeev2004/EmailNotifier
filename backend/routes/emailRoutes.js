@@ -99,4 +99,9 @@ router.post("/train", async (req, res) => {
   }
 });
 
+//Keeping the Connection On
+router.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
 export default router;

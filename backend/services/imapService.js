@@ -97,7 +97,10 @@ export function startForAccount(cfg) {
           }
 
           // Skip old messages
-          if (parsed.date && parsed.date < sinceDate) return resolve(null);
+          if (parsed.date && parsed.date < sinceDate) {
+            console.log(`[${cfg.name}] Skipping old email: "${parsed.subject}" from ${parsed.date.toISOString()}`);
+            return resolve(null);
+          }
 
           const doc = {
             account: cfg.name,
@@ -116,18 +119,33 @@ export function startForAccount(cfg) {
           // Skip duplicates
           const exists = await client.search({
             index: INDEX,
-            body: { query: { term: { uid: doc.uid } }, size: 1 },
+            body: {
+              query: {
+                bool: {
+                  must: [
+                    { term: { "account.keyword": doc.account } },
+                    { term: { "folder.keyword": doc.folder } },
+                    { term: { uid: doc.uid } }
+                  ]
+                }
+              },
+              size: 1
+            },
           });
-          if (exists.hits.total.value > 0) return resolve(null);
+          if (exists.hits.total.value > 0) {
+            console.log(`[${cfg.name}] Skipping duplicate: "${doc.subject}" (UID: ${doc.uid})`);
+            return resolve(null);
+          }
 
           // Categorize + Index
           doc.category = categorize(doc);
 
           await indexEmail(doc);
+          console.log(`[${cfg.name}] ✅ Indexed: "${doc.subject}" [${doc.category}]`);
 
           // Send notifications for "Interested"
           if (doc.category === "Interested") {
-            console.log(`[${cfg.name}] Interested: ${doc.subject}`);
+            console.log(`[${cfg.name}] 🔔 Interested: ${doc.subject}`);
             await sendWebhook(doc);
             await sendSlackNotification(doc);
           }

@@ -57,7 +57,12 @@ export function startForAccount(cfg) {
           size: 1,
           sort: [{ uid: { order: "desc" } }],
           query: {
-            bool: { must: [{ term: { account } }, { term: { folder } }] },
+            bool: {
+              must: [
+                { term: { "account.keyword": account } },
+                { term: { "folder.keyword": folder } },
+              ],
+            },
           },
         },
       });
@@ -256,7 +261,7 @@ export function startForAccount(cfg) {
           const docs = await fetchEmailsFromFolder(folder);
           totalIndexed += docs.length;
           // Add delay between folders to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (folderErr) {
           continue;
         }

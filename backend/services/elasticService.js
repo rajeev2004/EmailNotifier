@@ -99,8 +99,8 @@ export async function searchEmails(query, filters = {}) {
   const boolQuery = { must, filter: [] };
 
   if (filters.account) {
-    boolQuery.filter.push({
-      term: { "account.keyword": filters.account },
+    boolQuery.must.push({
+      match_phrase: { account: filters.account },
     });
   }
 

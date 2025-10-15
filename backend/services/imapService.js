@@ -59,8 +59,8 @@ export function startForAccount(cfg) {
           query: {
             bool: {
               must: [
-                { match: { "account.keyword": account } },
-                { match: { "folder.keyword": folder } },
+                { term: { "account.keyword": account.trim() } },
+                { term: { "folder.keyword": folder.trim() } },
               ],
             },
           },
@@ -112,8 +112,8 @@ export function startForAccount(cfg) {
           }
 
           const doc = {
-            account: cfg.name,
-            folder: folderName,
+            account: cfg.name.trim(),
+            folder: folderName.trim(),
             uid: attributes?.uid,
             subject: parsed.subject || "",
             from: parsed.from?.text || "",
@@ -132,8 +132,8 @@ export function startForAccount(cfg) {
               query: {
                 bool: {
                   must: [
-                    { match: { "account.keyword": doc.account } },
-                    { match: { "folder.keyword": doc.folder } },
+                    { term: { "account.keyword": doc.account } },
+                    { term: { "folder.keyword": doc.folder } },
                     { term: { uid: doc.uid } },
                   ],
                 },

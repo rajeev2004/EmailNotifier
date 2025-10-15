@@ -17,23 +17,28 @@ const client = new Client({
 
 const INDEX = "emails";
 
-client
-  .info()
-  .then(() => {})
-  .catch((err) =>
-    console.error("Elasticsearch connection failed:", err.message)
-  );
-
+// ✅ Ensure index exists with correct mappings
 export async function ensureIndex() {
   const exists = await client.indices.exists({ index: INDEX });
   if (!exists) {
     await client.indices.create({
       index: INDEX,
       body: {
+        settings: {
+          analysis: {
+            normalizer: {
+              lowercase: {
+                type: "custom",
+                char_filter: [],
+                filter: ["lowercase"],
+              },
+            },
+          },
+        },
         mappings: {
           properties: {
-            uid: { type: "long" }, //required for sorting
-            account: { type: "keyword" },
+            uid: { type: "long" },
+            account: { type: "keyword", normalizer: "lowercase" },
             folder: { type: "keyword" },
             subject: { type: "text" },
             body: { type: "text" },
@@ -51,22 +56,59 @@ export async function ensureIndex() {
   }
 }
 
+// ✅ Index with unique ID to prevent duplicates
 export async function indexEmail(doc) {
   await ensureIndex();
-  await client.index({ index: INDEX, body: doc });
-  await client.indices.refresh({ index: INDEX });
+
+  // Unique per-account/folder/UID combination
+  const docId = `${doc.account}-${doc.folder}-${doc.uid}`;
+
+  try {
+    await client.index({
+      index: INDEX,
+      id: docId,
+      body: doc,
+      op_type: "create", // prevents duplicates
+    });
+    await client.indices.refresh({ index: INDEX });
+  } catch (err) {
+    if (err.meta?.body?.error?.type === "version_conflict_engine_exception") {
+      console.log(`[${doc.account}] Duplicate detected: ${doc.subject}`);
+    } else {
+      console.error("Index error:", err.message);
+    }
+  }
 }
 
+// ✅ Enhanced search with proper filters and relevance
 export async function searchEmails(query, filters = {}) {
   await ensureIndex();
 
   const must = query
-    ? [{ multi_match: { query, fields: ["subject", "body", "from", "to"] } }]
+    ? [
+        {
+          simple_query_string: {
+            query,
+            fields: ["subject^3", "body", "from", "to"],
+            default_operator: "and",
+          },
+        },
+      ]
     : [{ match_all: {} }];
 
   const boolQuery = { must, filter: [] };
-  if (filters.account)
-    boolQuery.filter.push({ term: { account: filters.account } });
+
+  if (filters.account) {
+    boolQuery.filter.push({
+      term: { "account.keyword": filters.account },
+    });
+  }
+
+  if (filters.category) {
+    boolQuery.filter.push({
+      term: { "category.keyword": filters.category },
+    });
+  }
 
   const { hits } = await client.search({
     index: INDEX,

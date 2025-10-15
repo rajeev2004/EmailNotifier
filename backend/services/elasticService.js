@@ -53,15 +53,7 @@ export async function ensureIndex() {
 
 export async function indexEmail(doc) {
   await ensureIndex();
-
-  // Create unique document ID to prevent duplicates
-  const docId = `${doc.account}-${doc.folder}-${doc.uid}`;
-
-  await client.index({
-    index: INDEX,
-    id: docId, // This ensures same email won't be indexed twice
-    body: doc,
-  });
+  await client.index({ index: INDEX, body: doc });
   await client.indices.refresh({ index: INDEX });
 }
 
@@ -73,39 +65,21 @@ export async function searchEmails(query, filters = {}) {
     : [{ match_all: {} }];
 
   const boolQuery = { must, filter: [] };
-  if (filters.account) {
-    console.log(`Filtering by account: "${filters.account}"`);
-    boolQuery.filter.push({ term: { "account.keyword": filters.account } });
-  }
-
-  const searchQuery = {
-    query: { bool: boolQuery },
-    size: 100,
-    sort: [{ date: { order: "desc" } }],
-  };
-
-  console.log("Elasticsearch query:", JSON.stringify(searchQuery, null, 2));
+  if (filters.account)
+    boolQuery.filter.push({ term: { account: filters.account } });
 
   const { hits } = await client.search({
     index: INDEX,
-    body: searchQuery,
+    body: {
+      query: { bool: boolQuery },
+      size: 100,
+      sort: [{ date: { order: "desc" } }],
+    },
   });
 
-  console.log(`Found ${hits.hits.length} results`);
   return hits.hits.map((h) => h._source);
 }
 
 export async function searchAll() {
   return searchEmails(null, {});
-}
-
-export async function emailExists(account, folder, uid) {
-  try {
-    const docId = `${account}-${folder}-${uid}`;
-    const result = await client.exists({ index: INDEX, id: docId });
-    return result;
-  } catch (err) {
-    console.error("Error checking email existence:", err.message);
-    return false;
-  }
 }

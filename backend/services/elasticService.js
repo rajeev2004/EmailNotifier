@@ -65,18 +65,25 @@ export async function searchEmails(query, filters = {}) {
     : [{ match_all: {} }];
 
   const boolQuery = { must, filter: [] };
-  if (filters.account)
+  if (filters.account) {
+    console.log(`Filtering by account: "${filters.account}"`);
     boolQuery.filter.push({ term: { account: filters.account } });
+  }
+
+  const searchQuery = {
+    query: { bool: boolQuery },
+    size: 100,
+    sort: [{ date: { order: "desc" } }],
+  };
+
+  console.log('Elasticsearch query:', JSON.stringify(searchQuery, null, 2));
 
   const { hits } = await client.search({
     index: INDEX,
-    body: {
-      query: { bool: boolQuery },
-      size: 100,
-      sort: [{ date: { order: "desc" } }],
-    },
+    body: searchQuery,
   });
 
+  console.log(`Found ${hits.hits.length} results`);
   return hits.hits.map((h) => h._source);
 }
 

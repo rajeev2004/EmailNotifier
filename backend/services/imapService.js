@@ -25,6 +25,10 @@ function getSinceDate() {
   return cutoff;
 }
 
+function normalize(value) {
+  return value ? value.trim().toLowerCase() : "";
+}
+
 export function startForAccount(cfg) {
   const imap = new Imap({
     user: cfg.user,
@@ -59,8 +63,8 @@ export function startForAccount(cfg) {
           query: {
             bool: {
               must: [
-                { term: { "account.keyword": account.trim() } },
-                { term: { "folder.keyword": folder.trim() } },
+                { term: { "account.keyword": normalize(account) } },
+                { term: { "folder.keyword": normalize(folder) } },
               ],
             },
           },
@@ -112,8 +116,8 @@ export function startForAccount(cfg) {
           }
 
           const doc = {
-            account: cfg.name.trim(),
-            folder: folderName.trim(),
+            account: normalize(cfg.name),
+            folder: normalize(folderName),
             uid: attributes?.uid,
             subject: parsed.subject || "",
             from: parsed.from?.text || "",
@@ -158,10 +162,19 @@ export function startForAccount(cfg) {
 
           // Send notifications for "Interested"
           if (doc.category === "Interested") {
-            console.log(`[${cfg.name}] Interested: ${doc.subject}`);
-            await sendWebhook(doc);
-            await sendSlackNotification(doc);
-          }
+  console.log(`[${cfg.name}] Interested: ${doc.subject}`);
+
+  // 🔹 Prevent duplicate Slack notifications for same email
+  const docId = `${doc.account}-${doc.folder}-${doc.uid}`;
+  const alreadyExists = await client.exists({ index: INDEX, id: docId });
+
+  if (!alreadyExists) {
+    await sendWebhook(doc);
+    await sendSlackNotification(doc);
+  } else {
+    console.log(`[${cfg.name}] Skipping duplicate Slack notification for UID ${doc.uid}`);
+  }
+}
 
           resolve(doc);
         } catch (err) {
@@ -185,6 +198,9 @@ export function startForAccount(cfg) {
 
         const sinceDate = getSinceDate();
         const lastUID = await getLastIndexedUID(cfg.name, folderName);
+        if (lastUID > 0) {
+  console.log(`[${cfg.name}] Folder ${folderName} already initialized. Fetching only new emails...`);
+}
         console.log(
           `[${
             cfg.name

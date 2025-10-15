@@ -63,7 +63,14 @@ export async function ensureIndex() {
 
 export async function indexEmail(doc) {
   await ensureIndex();
-  await client.index({ index: INDEX, body: doc });
+  const uniqueId = `${doc.account}-${doc.folder}-${doc.uid}`;
+
+  await client.index({
+    index: INDEX,
+    id: uniqueId,
+    body: doc,
+  });
+
   await client.indices.refresh({ index: INDEX });
 }
 

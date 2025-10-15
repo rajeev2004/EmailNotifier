@@ -141,11 +141,11 @@ export function startForAccount(cfg) {
           doc.category = categorize(doc);
 
           await indexEmail(doc);
-          console.log(`[${cfg.name}] ✅ Indexed: "${doc.subject}" [${doc.category}]`);
+          console.log(`[${cfg.name}] Indexed: "${doc.subject}" [${doc.category}]`);
 
           // Send notifications for "Interested"
           if (doc.category === "Interested") {
-            console.log(`[${cfg.name}] 🔔 Interested: ${doc.subject}`);
+            console.log(`[${cfg.name}] Interested: ${doc.subject}`);
             await sendWebhook(doc);
             await sendSlackNotification(doc);
           }

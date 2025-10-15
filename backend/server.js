@@ -22,9 +22,9 @@ app.listen(PORT, async () => {
   console.log(`Backend running on http://localhost:${PORT}`);
   try {
     await ensureIndex();
-    console.log("✅ Elasticsearch connected");
+    console.log("Elasticsearch connected");
   } catch (err) {
-    console.error("❌ Elasticsearch connection failed:", err.message);
+    console.error("Elasticsearch connection failed:", err.message);
   }
   const accounts = [];
   for (let i = 1; i <= 5; i++) {

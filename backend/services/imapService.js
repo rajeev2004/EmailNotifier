@@ -52,31 +52,18 @@ export function startForAccount(cfg) {
       });
     });
 
-  //Fetch last UID
-  async function getLastIndexedUID(account, folder) {
+  // Improved duplicate check - check before any processing
+  async function checkDuplicate(account, folder, uid) {
     try {
-      const { hits } = await client.search({
+      const docId = `${normalize(account)}-${normalize(folder)}-${uid}`;
+      const exists = await client.exists({
         index: INDEX,
-        body: {
-          size: 1,
-          sort: [{ uid: { order: "desc" } }],
-          query: {
-            bool: {
-              must: [
-                { term: { "account.keyword": normalize(account) } },
-                { term: { "folder.keyword": normalize(folder) } },
-              ],
-            },
-          },
-        },
+        id: docId,
       });
-      if (!hits.hits.length) {
-        return 0;
-      }
-      return hits?.hits?.[0]?._source?.uid || 0;
+      return exists;
     } catch (err) {
-      console.error("Elasticsearch UID fetch error:", err.message);
-      return 0;
+      console.error("Duplicate check error:", err.message);
+      return false;
     }
   }
 
@@ -93,25 +80,23 @@ export function startForAccount(cfg) {
       msg.once("end", async () => {
         try {
           if (!buffer || buffer.trim().length === 0) {
-            console.warn(`[${cfg.name}] Skipping empty email body.`);
             return resolve(null);
           }
+
+          // Check duplicate BEFORE parsing
+          if (await checkDuplicate(cfg.name, folderName, attributes?.uid)) {
+            console.log(`[${cfg.name}] Skipping duplicate UID: ${attributes.uid}`);
+            return resolve(null);
+          }
+
           const parsed = await simpleParser(buffer);
 
           if (!parsed.from || !parsed.date) {
-            console.warn(
-              `[${cfg.name}] Skipping malformed email: missing headers.`
-            );
             return resolve(null);
           }
 
           // Skip old messages
           if (parsed.date && parsed.date < sinceDate) {
-            console.log(
-              `[${cfg.name}] Skipping old email: "${
-                parsed.subject
-              }" from ${parsed.date.toISOString()}`
-            );
             return resolve(null);
           }
 
@@ -129,52 +114,20 @@ export function startForAccount(cfg) {
             html: parsed.html || "",
           };
 
-          // Skip duplicates
-          const exists = await client.search({
-            index: INDEX,
-            body: {
-              query: {
-                bool: {
-                  must: [
-                    { term: { "account.keyword": doc.account } },
-                    { term: { "folder.keyword": doc.folder } },
-                    { term: { uid: doc.uid } },
-                  ],
-                },
-              },
-              size: 1,
-            },
-          });
-          if (exists.hits.total.value > 0) {
-            console.log(
-              `[${cfg.name}] Skipping duplicate: "${doc.subject}" (UID: ${doc.uid})`
-            );
-            return resolve(null);
-          }
-
           // Categorize + Index
           doc.category = categorize(doc);
 
-          await indexEmail(doc);
-          console.log(
-            `[${cfg.name}] Indexed: "${doc.subject}" [${doc.category}]`
-          );
+          const docId = `${doc.account}-${doc.folder}-${doc.uid}`;
+          await indexEmail(doc, docId);
+          
+          console.log(`[${cfg.name}] Indexed: "${doc.subject?.substring(0, 50)}..." [${doc.category}]`);
 
           // Send notifications for "Interested"
           if (doc.category === "Interested") {
-  console.log(`[${cfg.name}] Interested: ${doc.subject}`);
-
-  // 🔹 Prevent duplicate Slack notifications for same email
-  const docId = `${doc.account}-${doc.folder}-${doc.uid}`;
-  const alreadyExists = await client.exists({ index: INDEX, id: docId });
-
-  if (!alreadyExists) {
-    await sendWebhook(doc);
-    await sendSlackNotification(doc);
-  } else {
-    console.log(`[${cfg.name}] Skipping duplicate Slack notification for UID ${doc.uid}`);
-  }
-}
+            console.log(`[${cfg.name}] Interested email: ${doc.subject?.substring(0, 50)}...`);
+            await sendWebhook(doc);
+            await sendSlackNotification(doc);
+          }
 
           resolve(doc);
         } catch (err) {
@@ -186,49 +139,31 @@ export function startForAccount(cfg) {
   }
 
   async function fetchEmailsFromFolder(folderName) {
+    // Skip non-INBOX folders for real-time processing
+    if (folderName !== "INBOX" && !folderName.toLowerCase().includes("inbox")) {
+      console.log(`[${cfg.name}] Skipping folder: ${folderName}`);
+      return [];
+    }
+
     return new Promise((resolve) => {
       openFolder(folderName, async (err) => {
         if (err) {
-          console.log(
-            `[${cfg.name}] Could not open folder ${folderName}:`,
-            err.message
-          );
+          console.log(`[${cfg.name}] Could not open folder ${folderName}:`, err.message);
           return resolve([]);
         }
 
         const sinceDate = getSinceDate();
-        const lastUID = await getLastIndexedUID(cfg.name, folderName);
-        if (lastUID > 0) {
-  console.log(`[${cfg.name}] Folder ${folderName} already initialized. Fetching only new emails...`);
-}
-        console.log(
-          `[${
-            cfg.name
-          }] Checking ${folderName} - Last UID: ${lastUID}, Since: ${sinceDate.toISOString()}`
-        );
+        
+        console.log(`[${cfg.name}] Checking ${folderName} since ${sinceDate.toISOString().split('T')[0]}`);
 
         if (imap.state !== "authenticated") {
-          console.log(
-            `IMAP not authenticated for ${cfg.name}, skipping ${folderName}`
-          );
           return resolve([]);
         }
 
-        // Convert JS Date -> IMAP date format (DD-MMM-YYYY)
         function formatImapDate(date) {
           const months = [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
           ];
           return `${String(date.getDate()).padStart(2, "0")}-${
             months[date.getMonth()]
@@ -239,37 +174,18 @@ export function startForAccount(cfg) {
 
         imap.search([["SINCE", sinceStr]], async (err, results) => {
           if (err) {
-            console.error(
-              `[${cfg.name}] IMAP search error in ${folderName}:`,
-              err.message
-            );
+            console.error(`[${cfg.name}] IMAP search error:`, err.message);
             return resolve([]);
           }
 
           if (!results || results.length === 0) {
-            console.log(
-              `[${cfg.name}] No emails found in ${folderName} since ${sinceStr}`
-            );
+            console.log(`[${cfg.name}] No new emails in ${folderName}`);
             return resolve([]);
           }
 
-          console.log(
-            `[${cfg.name}] Found ${results.length} email(s) in ${folderName} since ${sinceStr}`
-          );
+          console.log(`[${cfg.name}] Found ${results.length} email(s) in ${folderName}`);
 
-          const newUIDs = results.filter((uid) => uid > lastUID);
-          if (newUIDs.length === 0) {
-            console.log(
-              `[${cfg.name}] All emails in ${folderName} already indexed (last UID: ${lastUID})`
-            );
-            return resolve([]);
-          }
-
-          console.log(
-            `[${cfg.name}] Processing ${newUIDs.length} new email(s) in ${folderName}`
-          );
-
-          const fetch = imap.fetch(newUIDs, { bodies: "" });
+          const fetch = imap.fetch(results, { bodies: "" });
           const messages = [];
 
           fetch.on("message", (msg) =>
@@ -277,17 +193,16 @@ export function startForAccount(cfg) {
           );
 
           fetch.once("error", (fetchErr) => {
-            console.error(
-              `[${cfg.name}] Fetch error in ${folderName}:`,
-              fetchErr.message
-            );
+            console.error(`[${cfg.name}] Fetch error:`, fetchErr.message);
           });
 
           fetch.once("end", async () => {
             const docs = (await Promise.all(messages)).filter(Boolean);
-
+            
             if (docs.length > 0) {
-              console.log(`[${cfg.name}] Indexed ${docs.length} new email(s)`);
+              console.log(`[${cfg.name}] Successfully indexed ${docs.length} email(s) from ${folderName}`);
+            } else {
+              console.log(`[${cfg.name}] No new emails to index from ${folderName}`);
             }
 
             resolve(docs);
@@ -302,15 +217,18 @@ export function startForAccount(cfg) {
       const boxes = await getFolders();
       const folderList = [];
 
-      // Flatten nested folders (like [Gmail]/Sent Mail)
+      // Only process INBOX and important folders
       function flattenBoxes(boxes, prefix = "") {
         for (const [name, box] of Object.entries(boxes)) {
           const fullName = prefix
             ? `${prefix}${box.delimiter || "/"}${name}`
             : name;
 
-          // Only add folders that can actually be selected
-          if (!box.children || Object.keys(box.children).length === 0) {
+          // Only add INBOX and select important folders
+          const lowerName = fullName.toLowerCase();
+          if (lowerName.includes('inbox') || 
+              lowerName.includes('primary') ||
+              (!box.children || Object.keys(box.children).length === 0)) {
             folderList.push(fullName);
           }
           if (box.children) flattenBoxes(box.children, fullName);
@@ -319,11 +237,7 @@ export function startForAccount(cfg) {
 
       flattenBoxes(boxes);
 
-      console.log(
-        `[${cfg.name}] Found ${folderList.length} folder(s): ${folderList.join(
-          ", "
-        )}`
-      );
+      console.log(`[${cfg.name}] Processing ${folderList.length} folder(s)`);
 
       let totalIndexed = 0;
 
@@ -331,23 +245,15 @@ export function startForAccount(cfg) {
         try {
           const docs = await fetchEmailsFromFolder(folder);
           totalIndexed += docs.length;
-          // Add delay between folders to avoid rate limiting
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 500));
         } catch (folderErr) {
-          console.error(
-            `[${cfg.name}] Error processing folder ${folder}:`,
-            folderErr.message
-          );
+          console.error(`[${cfg.name}] Error in ${folder}:`, folderErr.message);
           continue;
         }
       }
 
-      console.log(
-        `[${cfg.name}] Initial scan complete: ${totalIndexed} email(s) indexed total`
-      );
-      if (totalIndexed === 0) {
-        console.log(`[${cfg.name}] No new emails found - all caught up!`);
-      }
+      console.log(`[${cfg.name}] Initial scan complete: ${totalIndexed} new email(s) indexed`);
+      
     } catch (err) {
       console.error(`fetchRecentEmails error for ${cfg.name}:`, err.message);
     }
@@ -363,12 +269,7 @@ export function startForAccount(cfg) {
   }
 
   imap.once("ready", async () => {
-    console.log(`[${cfg.name}] IMAP connected successfully`);
-    console.log(
-      `[${cfg.name}] Fetching emails from last ${
-        process.env.FETCH_DAYS || 30
-      } days`
-    );
+    console.log(`[${cfg.name}] IMAP connected`);
 
     try {
       await fetchRecentEmails();
@@ -380,19 +281,15 @@ export function startForAccount(cfg) {
         }
 
         imap.on("mail", async (numNewMsgs) => {
+          console.log(`[${cfg.name}] New mail event: ${numNewMsgs} new message(s)`);
           const newDocs = await fetchNewEmails();
-          if (newDocs.length > 0) {
-            console.log(`[${cfg.name}] ${newDocs.length} new email(s)`);
-          }
         });
       });
 
+      // Keepalive
       setInterval(() => {
         try {
-          if (
-            imap.state === "authenticated" &&
-            typeof imap.noop === "function"
-          ) {
+          if (imap.state === "authenticated" && typeof imap.noop === "function") {
             imap.noop();
           }
         } catch (err) {
@@ -416,9 +313,7 @@ export function startForAccount(cfg) {
   });
 
   imap.on("end", () => console.log(`[${cfg.name}] Connection ended`));
-  imap.on("close", (hadError) => {
-    if (hadError) console.log(`[${cfg.name}] Connection closed with error`);
-  });
+  imap.on("close", () => console.log(`[${cfg.name}] Connection closed`));
 
   try {
     imap.connect();

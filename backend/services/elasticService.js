@@ -61,14 +61,16 @@ export async function ensureIndex() {
   }
 }
 
-export async function indexEmail(doc) {
+export async function indexEmail(doc, id = null) {
   await ensureIndex();
-  const uniqueId = `${doc.account}-${doc.folder}-${doc.uid}`;
+  
+  const uniqueId = id || `${doc.account}-${doc.folder}-${doc.uid}`;
 
   await client.index({
     index: INDEX,
-    id: uniqueId,
+    id: uniqueId, // Use consistent ID
     body: doc,
+    op_type: "create" // This will fail if document already exists
   });
 
   await client.indices.refresh({ index: INDEX });
